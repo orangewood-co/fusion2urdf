@@ -3,12 +3,15 @@
 This is a **fork** of the original [syuntoku14/fusion2urdf](https://github.com/syuntoku14/fusion2urdf) repository. 
 
 ## **Changes Made**
-- **Python 3.12 Compatibility**: Replaced the deprecated `distutils.dir_util` with `shutil` for directory operations, ensuring compatibility with **Python 3.12** used by Fusion 360.
-- **Error Handling**: Improved error handling to prevent `FileExistsError` when copying directories if they already exist.
-- **Directory Operations**: All directory copying is now done using `shutil.copytree`.
+- **Python 3.14 Compatibility**: Fusion currently ships Python 3.14. Directory copies use `shutil.copytree(..., dirs_exist_ok=True)` instead of `distutils`, which was removed in Python 3.12.
+- **Nested components, colors, and ROS 1/2**: Includes the [spacemaster85](https://github.com/spacemaster85/fusion2urdf) exporter (nested components, light-bulb visibility, materials, ROS 1 and ROS 2 packages).
+- **Fusion dialogs**: ROS 1 vs ROS 2 is chosen with a Fusion message box. The previous tkinter window often failed on macOS before any UI appeared.
+- **Visible failures**: Import and runtime errors are written to a Fusion message box and to `URDF_Exporter/fusion2urdf_debug.log`.
 
 ## **Notes**
-- The script is updated for use with **Python 3.12**, as Fusion 360 no longer supports `distutils` in versions above Python 3.10.
+- This is a Fusion **script**, not an add-in. It will not stay checked in the Running list.
+- Parent links must be **Component2** of each joint. `base_link` as Component1 produces `KeyError: base_link_1`.
+- STL meshes are written only after the xacro export finishes. An error during link writing leaves `meshes/` empty.
 
 ---
 
@@ -89,18 +92,11 @@ In addition to that, you should be careful when define your joints. The **parent
 
 <img src="https://github.com/syuntoku14/fusion2urdf/blob/images/spot_mini.PNG" alt="spot_mini" title="spot_mini" width="300" height="300">
 
-Also, make sure components of your model has only bodies. **Nested components are not supported**.
-For example, this works:
+Also, make sure that this script currently supports only "Rigid", "Slider" and "Revolute".
 
-<img src="https://github.com/syuntoku14/fusion2urdf/blob/images/only_bodies.PNG" alt="only_bodies" title="only_bodies" width="300" height="300">
+Nested components are exported as a single STL. Only joints on the root level are used. Joints inside nested components are ignored. Only components and bodies with the light bulb on are exported. **Joints with the light bulb off are not exported.** Deactivating `base_link` will cause problems.
 
-but this doesn't work since the "face (3):1" component contains other components. A component must contain only bodies:
-
-<img src="https://github.com/syuntoku14/fusion2urdf/blob/images/nest_components.PNG" alt="nest_components" title="nest_components" width="300" height="300">
-
-Sometimes this script exports abnormal urdf without any error messages. In that case, the joints should have problems. Redefine the joints and run again.
-
-In addition to that, make sure that this script currently supports only "Rigid", "Slider" and "Revolute".
+Colors defined on root-level components are written into the URDF material file. Example Fusion files are in the `Example` folder (`test_color.f3d`, `test_nested_components.f3d`, `Basic_Robot.f3d`).
 
 
 ## Complex Kinematic Loops and Spherical joints (may be fixed later):
@@ -155,30 +151,11 @@ Run the [installation command](#installation) in your shell.
 
 ### Run in Fusion 360
 
-Click ADD-INS in fusion 360, then choose ****fusion2urdf****. 
+Click ADD-INS in fusion 360, then choose **URDF_Exporter** from **Scripts** (not Add-Ins). It runs once and will not stay in the Running list.
 
-**This script will change your model. So before running it, copy your model to backup.**
+Export uses a temporary document, so the original design is not renamed. A backup is still a good idea.
 
-<img src="https://github.com/syuntoku14/fusion2urdf/blob/images/copy.png" alt="copy" title="copy" width="300" height="300">
-
-Run the script and wait a few seconds(or a few minutes). Then a folder dialog will show up. Choose where you want to save the urdf (A folder "Desktop/test" is chosen in this example").
-Maybe some error will occur when you run the script. Fix them according to the instruction. In this case, something wrong with joint "Rev 7". Probably it can be solved by just redefining the joint.
-
-![error](https://github.com/syuntoku14/fusion2urdf/blob/images/error.png)
-
-**You must define the base component**. Rename the base component as "base_link". 
-
-<img src="https://github.com/syuntoku14/fusion2urdf/blob/images/cautions.PNG" alt="cautions" title="cautions" width="300" height="300">
-
-In the above image, base_link is grounded. Right-click it and click "Unground". 
-
-Now you can run the script. Let's run the script. Choose the folder to save and wait for a few seconds. You will see many "old_components" in the components field, please ignore them. 
-
-<img src="https://github.com/syuntoku14/fusion2urdf/blob/images/result.PNG" alt="results" title="results" width="250" height="300">
-
-You have successfully exported the urdf file. Also, you got `.stl` files in the "Desktop/test/mm_stl" repository. This will be required at the next step. The existing fusion CAD file is no more needed. You can delete it. 
-
-The folder "Desktop/test" will be required in the next step. Move them into your ros environment.
+Run the script. A folder dialog titled **Fusion Folder Dialog** will appear; pick where to save. Then choose ROS 2 (Yes) or ROS 1 (No). Wait until **Successfully create URDF file**. STL files are written last, under `{robot_name}_description/meshes`.
 
 
 #### In your ROS environment
