@@ -5,6 +5,7 @@
 
 import adsk, adsk.core, adsk.fusion, traceback
 import os
+import re
 import datetime
 
 """
@@ -106,6 +107,19 @@ def run(context):
             _debug(msg)
             ui.messageBox(msg, title)
             return 0
+
+        jointed_children = {j['child'] for j in joints_dict.values()}
+        for occ in root.occurrences:
+            name = re.sub('[ :()]', '_', occ.name)
+            if 'base_link' in occ.component.name or name in jointed_children or not occ.isLightBulbOn:
+                continue
+            # STL meshes and inertials are exported in world coordinates, so a zero offset is exact.
+            joints_dict[name + '_fixed'] = {
+                'type': 'fixed', 'axis': [0, 0, 0],
+                'upper_limit': 0.0, 'lower_limit': 0.0,
+                'parent': 'base_link', 'child': name, 'xyz': [0, 0, 0],
+            }
+            _debug('added fixed joint base_link -> {}'.format(name))
         
         material_dict, color_dict, msg = Link.make_material_dict(root, msg)
         if msg != success_msg:
